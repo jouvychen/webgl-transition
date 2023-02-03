@@ -73,13 +73,13 @@ export class WebglTransitions {
   public gl: WebGLRenderingContext;
   public textures: WebGLTexture[] = [];
   public playIndex = 0;
-  public transitionList: string[];
+  public transitionList: any[];
   public playPicIndex = 0; // 轮播次数
   public carouselTime: number; // 轮播间隔时间, 单位ms
   public playPicList: string[]; // 轮播图片
   public playPicPreloadList: HTMLImageElement[] = []; // 轮播图片预加载存储列表
 
-  constructor(domId: string, transitionList: string[], playPicList: string[], carouselTime?: number) {
+  constructor(domId: string, transitionList: any[], playPicList: string[], carouselTime?: number) {
 
     this.checkInitResource(domId, transitionList, playPicList);
 
