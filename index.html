@@ -1,0 +1,50 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>CSS3 3D魔方旋转动画特效</title>
+
+<style>
+	body, html, #app {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#app canvas {
+  display: block;
+  position: fixed;
+  z-index: -1;
+  top: 0;
+}
+
+</style>
+
+</head>
+<body><script>
+// import { WebglTransitions } from './dist/index.js';
+var req = require ('./dist/index.js');
+
+window.onload = function() {
+  const imgs = [
+
+  'http://pic4.zhimg.com/v2-02ae8129fed6feadc1514fd861a44a2f_r.jpg',
+
+  'http://pic1.zhimg.com/v2-aa528fcd1a5ff3ba4a4a8429d3c11222_r.jpg',
+
+  'http://pic1.zhimg.com/v2-4ce925afd994d72a16276bc7fbddf97c_r.jpg',
+  ]
+
+  let webglTransitions = new req.WebglTransitions('#glcanvas', [invertedPageCurl,
+    glitchMemories,
+    polkaDotsCurtain,
+  ], imgs);
+  webglTransitions.main();
+}
+</script>
+<div>
+  <canvas id="glcanvas" width="1920" height="1080"></canvas>
+</div>
+
+</body>
+</html>

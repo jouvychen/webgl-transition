@@ -1,0 +1,30 @@
+{
+  "name": "webgl-transition",
+  "version": "1.0.0",
+  "description": "A simple webgl transition animation package",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "mocha --reporter spec"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jouvychen/webgl-transition.git"
+  },
+  "keywords": [
+    "webgl",
+    "transition"
+  ],
+  "author": "jouvyChen",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jouvychen/webgl-transition/issues"
+  },
+  "homepage": "https://github.com/jouvychen/webgl-transition#readme",
+  "devDependencies": {
+    "@types/node": "^18.11.18",
+    "chai": "^4.3.7",
+    "mocha": "^10.2.0",
+    "typescript": "^4.9.5"
+  }
+}
