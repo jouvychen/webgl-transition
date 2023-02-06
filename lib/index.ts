@@ -139,14 +139,14 @@ export class WebglTransitions {
   }
 
   creatFirstTexture() {
-    console.log('FirstTexture', this.playPicPreloadList[this.playPicIndex].currentSrc.toString());
+    // console.log('FirstTexture', this.playPicPreloadList[this.playPicIndex].currentSrc.toString());
     const textureRef = this.createTexture(this.gl.LINEAR, this.playPicPreloadList[this.playPicIndex]);
     this.gl.activeTexture(this.gl.TEXTURE0);
     this.gl.bindTexture(this.gl.TEXTURE_2D, textureRef);
     textureRef && this.textures.push(textureRef);
   }
   creatSecondTexture() {
-    console.log('SecondTexture', this.playPicPreloadList[this.playPicIndex + 1 === this.playPicPreloadList.length ? 0 : this.playPicIndex + 1].currentSrc.toString());
+    // console.log('SecondTexture', this.playPicPreloadList[this.playPicIndex + 1 === this.playPicPreloadList.length ? 0 : this.playPicIndex + 1].currentSrc.toString());
     const textureRef1 = this.createTexture(this.gl.LINEAR, this.playPicPreloadList[this.playPicIndex + 1 === this.playPicPreloadList.length ? 0 : this.playPicIndex + 1]);
     this.gl.activeTexture(this.gl.TEXTURE1);
     this.gl.bindTexture(this.gl.TEXTURE_2D, textureRef1);
@@ -155,6 +155,9 @@ export class WebglTransitions {
 
   async main() {
     const e = this.transitionList[this.playIndex];
+    // console.log('当前动画', this.playIndex, e);
+    console.log('当前动画', this.playIndex);
+    
     this.intervalTime = e.intervalTime || 100;
     this.vsSource = e.vsSource;
     this.fsSource = e.fsSource;
@@ -204,6 +207,8 @@ export class WebglTransitions {
     if (this.playPicPreloadList.length != this.playPicList.length) {
       await Promise.all([this.asyncLoadImage()]);
     }
+    this.gl.deleteTexture(this.textures[1]);
+    this.gl.deleteTexture(this.textures[0]);
     this.textures = [];
     this.creatFirstTexture();
     this.creatSecondTexture();
@@ -314,6 +319,11 @@ export class WebglTransitions {
 
   loadShader(type:any, source:any) : WebGLShader | null {
     const shader = this.gl.createShader(type) as WebGLShader;
+
+    if (!shader) {
+      console.log('创建shader失败');
+      return null;
+    }
 
     this.gl.shaderSource(shader, source);
 
