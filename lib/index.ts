@@ -64,6 +64,8 @@ const transitionObject:ObjectKey = {
 }
 
 export class WebglTransitions {
+  private vertexShader: WebGLShader | null = null;
+  private fragmentShader: WebGLShader | null = null;
   public firstInit = true;
   public timer: NodeJS.Timeout | undefined = undefined;
   public intervalTime = 100; // 过渡动画多少毫秒绘制一帧
@@ -285,16 +287,21 @@ export class WebglTransitions {
   }
 
   initShaderProgram() : WebGLProgram | null {
-    const vertexShader = this.loadShader(this.gl.VERTEX_SHADER, this.vsSource);
-    const fragmentShader = this.loadShader(this.gl.FRAGMENT_SHADER, this.fsSource);
+    this.loadVertexShader(this.vsSource);
+    this.loadFragmentShader(this.fsSource);
 
-    if (!vertexShader || !fragmentShader) {
+    if (!this.vertexShader || !this.fragmentShader) {
       return false;
     }
 
     const shaderProgram = this.gl.createProgram() as WebGLProgram;
-    this.gl.attachShader(shaderProgram, vertexShader);
-    this.gl.attachShader(shaderProgram, fragmentShader);
+
+    if (!shaderProgram) {
+      console.log('编译失败', this.vertexShader, this.fragmentShader, shaderProgram);
+    }
+    
+    this.gl.attachShader(shaderProgram, this.vertexShader);
+    this.gl.attachShader(shaderProgram, this.fragmentShader);
     this.gl.linkProgram(shaderProgram);
 
     if (!this.gl.getProgramParameter(shaderProgram, this.gl.LINK_STATUS)) {
@@ -317,24 +324,33 @@ export class WebglTransitions {
     return textureRef;
   }
 
-  loadShader(type:any, source:any) : WebGLShader | null {
-    const shader = this.gl.createShader(type) as WebGLShader;
-
-    if (!shader) {
-      console.log('创建shader失败');
-      return null;
+  loadVertexShader(source:string):void{
+    if (!this.vertexShader) {
+      this.vertexShader = this.gl.createShader(this.gl.VERTEX_SHADER) as WebGLShader;
     }
+    this.gl.shaderSource(this.vertexShader, source);
 
-    this.gl.shaderSource(shader, source);
+    this.gl.compileShader(this.vertexShader);
 
-    this.gl.compileShader(shader);
-
-    if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
-      alert('编译着色器时发生错误: ' + this.gl.getShaderInfoLog(shader));
-      this.gl.deleteShader(shader);
-      return null;
+    if (!this.gl.getShaderParameter(this.vertexShader, this.gl.COMPILE_STATUS)) {
+      console.log('编译顶点着色器失败', this.vertexShader, this.gl.COMPILE_STATUS);
+      console.log('编译顶点着色器时发生错误: ', this.gl.getShaderInfoLog(this.vertexShader));
+      this.gl.deleteShader(this.vertexShader);
     }
+  }
 
-    return shader;
+  loadFragmentShader(source:string):void{
+    if (!this.fragmentShader) {
+      this.fragmentShader = this.gl.createShader(this.gl.FRAGMENT_SHADER) as WebGLShader;
+    }
+    this.gl.shaderSource(this.fragmentShader, source);
+
+    this.gl.compileShader(this.fragmentShader);
+
+    if (!this.gl.getShaderParameter(this.fragmentShader, this.gl.COMPILE_STATUS)) {
+      console.log('编译片元着色器失败',this.fragmentShader, this.gl.COMPILE_STATUS);
+      console.log('编译片元着色器时发生错误: ', this.gl.getShaderInfoLog(this.fragmentShader));
+      this.gl.deleteShader(this.fragmentShader);
+    }
   }
 }
