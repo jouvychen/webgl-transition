@@ -132,11 +132,10 @@ export class WebglTransitions {
   
       // inform WebGL that we handle context restoration
       event.preventDefault();
+      console.log('3秒后重新初始化');
 
       setTimeout(()=>{
         that.test()
-        console.log('3秒后重新初始化');
-        
       }, 3000)
     
       // Stop rendering
@@ -172,7 +171,8 @@ export class WebglTransitions {
     this.carouselTime = carouselTime || 3000;
     console.log('初始信息', domId, transitionList, playPicList, canvas, this.gl);
     if (!this.gl) {
-      alert('无法初始化WebGL, 您的浏览器或机器可能不支持它。');
+      // alert('无法初始化WebGL, 您的浏览器或机器可能不支持它。');
+      console.error('1无法初始化WebGL, 您的浏览器或机器可能不支持它。');
       return;
     }
   };
@@ -246,8 +246,12 @@ export class WebglTransitions {
         ++that.diushijianting;
 
         // 注释可以一直重新初始化
+        // if(that.diushijianting > 1){
+        //   that.diushijianting = 0;
+        //   return;
+        // }
+// debugger
         if(that.diushijianting > 1){
-          that.diushijianting = 0;
           return;
         }
 
@@ -268,6 +272,7 @@ export class WebglTransitions {
       this.vsSource = '';
       this.fsSource = '';
       this.gl = null;
+      this.playPicPreloadList = [];
       this.textures = [];
       this.playIndex = 0;
       this.playPicIndex = 0;
@@ -275,7 +280,8 @@ export class WebglTransitions {
       this.gl = canvas.getContext('webgl') as WebGLRenderingContext;
       console.log(this.gl, this.transitionList);
       if (!this.gl) {
-        alert('无法初始化WebGL, 您的浏览器或机器可能不支持它。');
+        // alert('无法初始化WebGL, 您的浏览器或机器可能不支持它。');
+        console.error('2无法初始化WebGL, 您的浏览器或机器可能不支持它。');
         return;
       }
 
@@ -303,7 +309,7 @@ export class WebglTransitions {
           c++;
           console.log(c, this.playPicList[i]);
           this.playPicPreloadList.push(img);
-          console.log(this.playPicPreloadList);
+          console.log('网络图', this.playPicPreloadList);
           if (this.playPicPreloadList.length === this.playPicList.length) {
             resolve(1);
           }
@@ -388,6 +394,7 @@ export class WebglTransitions {
 
     // 只初始化获取一次图片资源
     if (this.playPicPreloadList.length != this.playPicList.length) {
+      console.log('加载网络图片');
       await Promise.all([this.asyncLoadImage()]);
     }
     this.gl.deleteTexture(this.textures[1]);
@@ -404,6 +411,8 @@ export class WebglTransitions {
       }
 
       if (this.textures.length === 2) {
+
+        // WebGL: INVALID_OPERATION: uniform1i: location not for current program
 
         this.gl.uniform1i(u_Sampler, 0); // texture unit 0
         this.gl.activeTexture(this.gl.TEXTURE0);
@@ -476,19 +485,20 @@ export class WebglTransitions {
           return;
         }
 
-        if (this.gl && this.gl.getExtension('WEBGL_lose_context')) {
-          setTimeout(() => {
-            ++this.monidiushi;
-            if (!this.gl || this.monidiushi > 1) {
-              return;
-            }
-            const a = this.gl.getExtension('WEBGL_lose_context');
-            a && a.loseContext();
-            console.log('模拟丢失');
-            this.timer && clearInterval(this.timer);
-            return;
-          }, 3000)
-        }
+        // if (this.gl && this.gl.getExtension('WEBGL_lose_context')) {
+        //   setTimeout(() => {
+        //     ++this.monidiushi;
+        //     if (!this.gl || this.monidiushi > 1) {
+        //       return;
+        //     }
+        //     const a = this.gl.getExtension('WEBGL_lose_context');
+        //     a && a.loseContext();
+        //     console.log('模拟丢失');
+        //     this.timer && clearInterval(this.timer);
+        //     this.diushijianting = 0;
+        //     return;
+        //   }, 12000)
+        // }
 
       }
 
@@ -571,7 +581,7 @@ export class WebglTransitions {
 
     if (!this.gl.getShaderParameter(this.vertexShader, this.gl.COMPILE_STATUS)) {
       console.log('编译顶点着色器失败', this.vertexShader, this.gl.COMPILE_STATUS);
-      console.log('编译顶点着色器时发生错误: ', this.gl.getShaderInfoLog(this.vertexShader));
+      console.error('编译顶点着色器时发生错误: ', this.gl.getShaderInfoLog(this.vertexShader));
       // alert('编译顶点着色器时发生错误: ' + this.gl.getShaderInfoLog(this.vertexShader));
       this.gl.deleteShader(this.vertexShader);
     }
@@ -590,9 +600,28 @@ export class WebglTransitions {
 
     if (!this.gl.getShaderParameter(this.fragmentShader, this.gl.COMPILE_STATUS)) {
       console.log('编译片元着色器失败', this.fragmentShader, this.gl.COMPILE_STATUS);
-      console.log('编译片元着色器时发生错误: ', this.gl.getShaderInfoLog(this.fragmentShader));
+      console.error('编译片元着色器时发生错误: ', this.gl.getShaderInfoLog(this.fragmentShader));
       // alert('编译片元着色器时发生错误: ' + this.gl.getShaderInfoLog(this.fragmentShader));
       this.gl.deleteShader(this.fragmentShader);
     }
   }
+
+  // 模拟丢失上下文
+  simulatedLostContext() {
+    if (this.gl && this.gl.getExtension('WEBGL_lose_context')) {
+      // setTimeout(() => {
+        ++this.monidiushi;
+        if (!this.gl || this.monidiushi > 1) {
+          return;
+        }
+        const a = this.gl.getExtension('WEBGL_lose_context');
+        a && a.loseContext();
+        console.log('模拟丢失');
+        this.timer && clearInterval(this.timer);
+        this.diushijianting = 0;
+        return;
+      // }, 12000)
+    }
+  }
+
 }
