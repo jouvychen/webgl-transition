@@ -103,22 +103,27 @@ export class WebglTransitions {
     document.querySelector(domId)?.appendChild(this.canvas);
     this.canvas.width = 1920;
     this.canvas.height = 1080;
-    let that = this;
-    this.canvas.addEventListener("webglcontextlost", function (event) {
-      console.log("WebGL上下文丢失");
-  
-      // inform WebGL that we handle context restoration
-      // 通知WebGL我们处理上下文恢复
-      event.preventDefault();
-      console.log('3秒后重新渲染');
-
-      setTimeout(()=>{
-        that.restart()
-      }, 3000)
     
-      // Stop rendering
-      // window.cancelAnimationFrame(requestId);
-    }, false);
+    // this.canvas.addEventListener("webglcontextlost", function (event) {
+    //   console.log("WebGL上下文丢失");
+  
+    //   // inform WebGL that we handle context restoration
+    //   event.preventDefault();
+    //   console.log('3秒后重新初始化');
+
+    //   setTimeout(()=>{
+    //     // that.test()
+    //   }, 3000)
+    
+    //   // Stop rendering
+    //   // window.cancelAnimationFrame(requestId);
+    // }, false);
+    
+    // let that = this;
+    // this.canvas.addEventListener("webglcontextrestored", function (event) {
+    //   console.log('webglcontextrestored恢复');
+    //   that.test();
+    // }, false);
 
     this.gl = this.canvas.getContext('webgl') as WebGLRenderingContext;
     this.transitionList = transitionList.map((o: string) => {
@@ -127,8 +132,17 @@ export class WebglTransitions {
     this.playPicList = playPicList;
     this.carouselTime = carouselTime || 3000;
 
+    //监听当页面tab是否被切出
+    // window.addEventListener('visibilitychange', (e) => {
+    //   console.log('页面是否切出', document.hidden);
+    //   if (document.hidden) {
+    //     console.log('页面已切出');
+    //   } else {
+    //     console.log('页面已回来');
+    //   }
+    // });
 
-
+    console.log('初始信息', domId, transitionList, playPicList, this.canvas, this.gl);
     if (!this.gl) {
       console.error('无法初始化WebGL, 您的浏览器或机器可能不支持它。');
       return;
@@ -146,6 +160,20 @@ export class WebglTransitions {
     if (!playPicList || playPicList.length === 0) {
       throw new Error('WebglTransitions初始化失败, 缺少参数playPicList转场图片');
     }
+  }
+
+  //上线文丢失后停止动画
+  contextLost(e: any) {
+    console.log("WebGL上下文丢失");
+    //停止动画
+    this.timer && clearInterval(this.timer);
+    e.preventDefault() //阻止浏览器的默认行为
+    console.log('this', this);
+    this.test();
+  }
+
+  test() {
+      this.restart();
   }
 
   asyncLoadImage() {
@@ -166,7 +194,9 @@ export class WebglTransitions {
 
         img.onload = () => {
           c++;
+          console.log(c, this.playPicList[i]);
           this.playPicPreloadList.push(img);
+          console.log('网络图', this.playPicPreloadList);
           if (this.playPicPreloadList.length === this.playPicList.length) {
             resolve(1);
           }
@@ -179,6 +209,7 @@ export class WebglTransitions {
     if (!this.gl) {
       return;
     }
+    // console.log('FirstTexture', this.playPicPreloadList[this.playPicIndex].currentSrc.toString());
     const textureRef = this.createTexture(this.gl.LINEAR, this.playPicPreloadList[this.playPicIndex]);
     this.gl.activeTexture(this.gl.TEXTURE0);
     this.gl.bindTexture(this.gl.TEXTURE_2D, textureRef);
@@ -188,6 +219,7 @@ export class WebglTransitions {
     if (!this.gl) {
       return;
     }
+    // console.log('SecondTexture', this.playPicPreloadList[this.playPicIndex + 1 === this.playPicPreloadList.length ? 0 : this.playPicIndex + 1].currentSrc.toString());
     const textureRef1 = this.createTexture(this.gl.LINEAR, this.playPicPreloadList[this.playPicIndex + 1 === this.playPicPreloadList.length ? 0 : this.playPicIndex + 1]);
     this.gl.activeTexture(this.gl.TEXTURE1);
     this.gl.bindTexture(this.gl.TEXTURE_2D, textureRef1);
@@ -260,18 +292,20 @@ export class WebglTransitions {
     this.creatFirstTexture();
     this.creatSecondTexture();
 
+    // WebGL: INVALID_OPERATION: uniform1i: location not for current program
+    // INVALID_OPERATION: getUniformLocation: object does not belong to this contex
+
+    // WebGL: INVALID_OPERATION: uniform1i: location not for current program
     this.gl.uniform1i(u_Sampler, 0); // texture unit 0
     this.gl.activeTexture(this.gl.TEXTURE0);
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures[1]);
 
+    // WebGL: INVALID_OPERATION: uniform1i: location not for current program
     this.gl.uniform1i(u_Sampler1, 1); // texture unit 1
     this.gl.activeTexture(this.gl.TEXTURE1);
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures[0]);
 
     let i = 0.0;
-
-    // 关键要将上次没有被清除的定时器清除，否则出现页面抖动、多个着色器动画共同执行的奇怪现象，
-    // 其本质是定时器未关闭，而不是着色器程序没有清除
 
     this.timer && clearInterval(this.timer);
 
@@ -281,12 +315,30 @@ export class WebglTransitions {
       }
 
       if (this.textures.length === 2) {
+
+        // https://stackoverflow.com/questions/14413713/webgl-invalid-operation-uniform1i-location-not-for-current-program/14416423
+
+        // // WebGL: INVALID_OPERATION: uniform1i: location not for current program
+        // // INVALID_OPERATION: getUniformLocation: object does not belong to this contex
+
+        // // WebGL: INVALID_OPERATION: uniform1i: location not for current program
+        // this.gl.uniform1i(u_Sampler, 0); // texture unit 0
+        // this.gl.activeTexture(this.gl.TEXTURE0);
+        // this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures[1]);
+
+        // // WebGL: INVALID_OPERATION: uniform1i: location not for current program
+        // this.gl.uniform1i(u_Sampler1, 1); // texture unit 1
+        // this.gl.activeTexture(this.gl.TEXTURE1);
+        // this.gl.bindTexture(this.gl.TEXTURE_2D, this.textures[0]);
+
         if(!this.shaderProgram) {
           console.error('shaderProgram失败');
           return;
         }
 
+        // WebGL: INVALID_OPERATION: getUniformLocation: object does not belong to this context
         const progress = this.gl.getUniformLocation(this.shaderProgram, 'progress');
+        // WebGL: INVALID_OPERATION: uniform1f: location not for current program
         this.gl.uniform1f(progress, i);
 
         for (let i = 0; i < this.assignmentList.length; i++) {
@@ -294,7 +346,10 @@ export class WebglTransitions {
           const length = e.value.length;
           switch (length) {
             case 1:
-              
+              // WebGL: INVALID_OPERATION: uniform1f: location not for current program
+              // WebGL: too many errors, no more errors will be reported to the console for this context.
+              // WebGL: INVALID_OPERATION: getUniformLocation: object does not belong to this context
+              // WebGL: too many errors, no more errors will be reported to the console for this context.
               this.gl.uniform1f(this.gl.getUniformLocation(this.shaderProgram, e.key), e.value[0]);
               break;
             case 2:
@@ -432,21 +487,20 @@ export class WebglTransitions {
     this.gl.compileShader(this.fragmentShader);
 
     if (!this.gl.getShaderParameter(this.fragmentShader, this.gl.COMPILE_STATUS)) {
+      console.log('编译片元着色器失败', this.fragmentShader, this.gl.COMPILE_STATUS);
       console.error('编译片元着色器时发生错误: ', this.gl.getShaderInfoLog(this.fragmentShader));
-      
+      // alert('编译片元着色器时发生错误: ' + this.gl.getShaderInfoLog(this.fragmentShader));
       this.gl.deleteShader(this.fragmentShader);
-      console.log('500ms后重新渲染');
-      
-      setTimeout(()=>{
-        this.restart();
-      }, 500);
+      // setTimeout(()=>{
+      //   this.restart();
+      // }, 500);
     }
   }
 
   // 模拟丢失上下文
   simulatedLostContext() {
     if (this.gl && this.gl.getExtension('WEBGL_lose_context')) {
-
+      // setTimeout(() => {
         ++this.analogLossContentCounts;
         if (!this.gl || this.analogLossContentCounts > 1) {
           return;
@@ -459,8 +513,11 @@ export class WebglTransitions {
         console.log('丢失后的timer', this.timer);
         
         this.diushijianting = 0;
-        // this.restart() // 立即执行自主的重新渲染，而不是让监听器执行
+        // setTimeout(()=>{
+          this.test()
+        // }, 3000)
         return;
+      // }, 12000)
     }
   }
 
@@ -472,10 +529,11 @@ export class WebglTransitions {
   restart() {
     // 释放旧的gl上下文资源
     this.dispose();
-
     let that = this;
     console.log('restart webgl transition...');
     this.analogLossContentCounts = 0;
+
+    // this.canvas?.removeEventListener("webglcontextlost",()=>{}, false)
 
     const el = document.querySelector(this.parentId);
     if(el) {
@@ -485,33 +543,47 @@ export class WebglTransitions {
       }
     }
 
+    // debugger
     this.canvasId = Date.now().toString();
     this.canvas = document.createElement("canvas");
     this.canvas.id = this.canvasId;
     document.querySelector(this.parentId)?.appendChild(this.canvas);
     this.canvas.width = 1920;
     this.canvas.height = 1080;
-    console.log('新的canvas', this.canvas);
 
+    console.log('新的canvas', this.canvas);
+    
+
+
+    // this.canvas = canvas;
     // https://blog.csdn.net/qq_30100043/article/details/74127228
     //添加事件监听
     
-    this.canvas.addEventListener("webglcontextlost", function() {
-      ++that.diushijianting;
+    // this.canvas.addEventListener("webglcontextlost", function() {
+    //   ++that.diushijianting;
 
-      // 注释可以一直重新初始化
-      // if(that.diushijianting > 1){
-      //   that.diushijianting = 0;
-      //   return;
-      // }
+    //   // 注释可以一直重新初始化
+    //   // if(that.diushijianting > 1){
+    //   //   that.diushijianting = 0;
+    //   //   return;
+    //   // }
       
-      if(that.diushijianting > 1){
-        return;
-      }
+    //   if(that.diushijianting > 1){
+    //     return;
+    //   }
 
-      console.log('2次监听');
-      that.restart();
-    });
+    //   console.log('that', that);
+    //   console.log('2次监听');
+    //   that.test();
+    // });
+    // this.canvas.addEventListener("webglcontextrestored", function () {
+    //   // start(canvas);
+    //   console.log('webglcontextrestored恢复');
+
+    // });
+
+    // // 释放旧的gl上下文资源
+    // this.dispose();
 
     this.gl = this.canvas.getContext('webgl') as WebGLRenderingContext;
     console.log(this.gl, this.transitionList);
@@ -522,28 +594,39 @@ export class WebglTransitions {
 
     setTimeout(()=>{
       this.main();
-    }, 1000)
+    }, 3000)
+
+    
+  // })
   }
 
   dispose() {
     if(this.gl) {
-      console.log('清空gl资源');
       // https://www.daicuo.cc/biji/357969
+      // WebGL: INVALID_OPERATION: bindBuffer: object does not belong to this context
+      // this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexBuffer);
+      // WebGL: INVALID_OPERATION: bufferData: no buffer
+      // this.gl.bufferData(this.gl.ARRAY_BUFFER, 1, this.gl.STATIC_DRAW);
       this.gl.bindBuffer(this.gl.ARRAY_BUFFER, null);
+      // WebGL: INVALID_OPERATION: delete: object does not belong to this context
       this.vertexBuffer && this.gl.deleteBuffer(this.vertexBuffer);
       this.vertexBuffer && (this.vertexBuffer = null);
-      this.gl.deleteProgram(this.shaderProgram);
-      this.gl.deleteShader(this.vertexShader);
-      this.gl.deleteShader(this.fragmentShader);
+      console.log('清空贴图');
       this.gl.deleteTexture(this.textures[1]);
       this.gl.deleteTexture(this.textures[0]);
     }
     
     this.firstInit = true;
-    // this.timer = undefined; // 之前出现的抖动和多个着色器重复执行的怪象就是这行代码，提前清除this.timer导致后面无法执行clearInterval
+    // this.timer = undefined;
     this.vsSource = '';
     this.fsSource = '';
     this.playPicPreloadList = [];
+    if(this.gl){
+      this.gl.deleteProgram(this.shaderProgram);
+      console.log('删除着色器程序');
+      this.gl.deleteShader(this.vertexShader);
+      this.gl.deleteShader(this.fragmentShader);
+    }
     this.shaderProgram = null;
     this.vertexShader = null;
     this.fragmentShader = null;
