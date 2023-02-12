@@ -102,7 +102,7 @@ export class WebglTransitions {
 
   constructor(domId: string, transitionList: any[], playPicList: string[] | HTMLImageElement[], carouselTime?: number) {
     this.checkInitResource(domId, transitionList, playPicList);
-    this.canvasId = `webgl-transition-${Math.random().toString().slice(2, 8)}`;
+    this.canvasId = `webgl-transition-${Math.random().toString().slice(2, 10)}`;
     this.parentId = domId;
 
     this.canvas = document.createElement("canvas");
@@ -210,12 +210,16 @@ export class WebglTransitions {
   }
 
   async main() {
+    console.log('贴图顺序信息', this.playPicPreloadList.map((o: HTMLImageElement) => {
+      return o.currentSrc
+    }));
+
     if (!this.gl) {
       return;
     }
     const e = this.transitionList[this.playIndex];
     // console.log('当前动画', this.playIndex, e);
-    console.log('当前动画', e, this.playIndex);
+    // console.log('当前动画', e, this.playIndex);
 
     this.intervalTime = e.intervalTime || 100;
     this.vsSource = e.vsSource;
@@ -356,7 +360,6 @@ export class WebglTransitions {
         }
 
         i += 0.02;
-        // console.log('定时器');  
 
         if (!this.gl || this.stopPlaying) {
           return;
@@ -417,17 +420,17 @@ export class WebglTransitions {
       return;
     }
     if (!this.vertexShader) {
-      console.log('初始化this.vertexShader', this.vertexShader);
+      // console.log('初始化this.vertexShader', this.vertexShader);
       this.vertexShader = this.gl.createShader(this.gl.VERTEX_SHADER) as WebGLShader;
     }
-    console.log('编译前this.vertexShader', this.vertexShader);
+    // console.log('编译前this.vertexShader', this.vertexShader);
     this.gl.shaderSource(this.vertexShader, source);
 
     this.gl.compileShader(this.vertexShader);
-    console.log('编译后this.vertexShader', this.vertexShader);
+    // console.log('编译后this.vertexShader', this.vertexShader);
 
     if (!this.gl.getShaderParameter(this.vertexShader, this.gl.COMPILE_STATUS)) {
-      console.log('编译顶点着色器失败', this.vertexShader, this.gl.COMPILE_STATUS);
+      // console.log('编译顶点着色器失败', this.vertexShader, this.gl.COMPILE_STATUS);
       console.error('编译顶点着色器时发生错误: ', this.gl.getShaderInfoLog(this.vertexShader));
       // alert('编译顶点着色器时发生错误: ' + this.gl.getShaderInfoLog(this.vertexShader));
       this.gl.deleteShader(this.vertexShader);
@@ -470,7 +473,7 @@ export class WebglTransitions {
       console.clear();
       console.log('模拟丢失');
       this.timer && clearInterval(this.timer);
-      console.log('丢失后的timer', this.timer);
+      // console.log('丢失后的timer', this.timer);
 
       this.diushijianting = 0;
       return;
@@ -500,7 +503,7 @@ export class WebglTransitions {
       }
     }
 
-    this.canvasId = `webgl-transition-${Math.random().toString().slice(2, 8)}`;
+    this.canvasId = `webgl-transition-${Math.random().toString().slice(2, 10)}`;
     this.canvas = document.createElement("canvas");
     this.canvas.id = this.canvasId;
     const parent = document.querySelector(this.parentId);
@@ -509,7 +512,7 @@ export class WebglTransitions {
     // debugger
     this.canvas.width = parent ? parent.clientWidth : 1920;
     this.canvas.height = parent ? parent.clientHeight : 1080;
-    console.log('新的canvas', this.canvas);
+    // console.log('新的canvas', this.canvas);
 
     // https://blog.csdn.net/qq_30100043/article/details/74127228
     //添加事件监听
@@ -532,7 +535,7 @@ export class WebglTransitions {
     });
 
     this.gl = this.canvas.getContext('webgl') as WebGLRenderingContext;
-    console.log(this.gl, this.transitionList);
+    // console.log(this.gl, this.transitionList);
     if (!this.gl) {
       console.error('无法重新初始化WebGL, 您的浏览器或机器可能不支持它。');
       return;
