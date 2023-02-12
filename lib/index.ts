@@ -25,6 +25,11 @@ import { invertedPageCurl } from './transition-types/inverted-page-curl';
 import { glitchMemories } from './transition-types/glitch-memories';
 import { polkaDotsCurtain } from './transition-types/polka-dots-curtain';
 
+
+const isArrayOfStrings = (value: unknown): value is string[] => {
+  return Array.isArray(value) && value.every(item => typeof item === "string");
+}
+
 // 初始化参数
 interface InitParams {
   id: string,
@@ -67,6 +72,7 @@ const transitionObject: ObjectKey = {
 }
 
 export class WebglTransitions {
+  private loadImageSelf = false;
   private diushijianting = 0;
   private analogLossContentCounts = 0;
   private parentId: string = '';
@@ -86,36 +92,39 @@ export class WebglTransitions {
   public transitionList: any[];
   public playPicIndex = 0; // 轮播次数
   public carouselTime: number; // 轮播间隔时间, 单位ms
-  public playPicList: string[]; // 轮播图片
+  public playPicList: string[] = []; // 轮播图片
   public playPicPreloadList: HTMLImageElement[] = []; // 轮播图片预加载存储列表
   public stopPlaying = false;
-  public shaderProgram:WebGLProgram | null= null;
-  public vertexBuffer:WebGLBuffer | null= null;
-  
-  
+  public shaderProgram: WebGLProgram | null = null;
+  public vertexBuffer: WebGLBuffer | null = null;
 
-  constructor(domId: string, transitionList: any[], playPicList: string[], carouselTime?: number) {
-    this.canvasId = Date.now().toString();
+
+
+  constructor(domId: string, transitionList: any[], playPicList: string[] | HTMLImageElement[], carouselTime?: number) {
+    this.checkInitResource(domId, transitionList, playPicList);
+    this.canvasId = `webgl-transition-${Math.random().toString().slice(2, 8)}`;
     this.parentId = domId;
 
     this.canvas = document.createElement("canvas");
     this.canvas.id = this.canvasId;
+    const parent = document.querySelector(domId);
+    const { clientWidth, clientHeight } = parent ? parent : { clientWidth: 1920, clientHeight: 1080 };
     document.querySelector(domId)?.appendChild(this.canvas);
-    this.canvas.width = 1920;
-    this.canvas.height = 1080;
+    this.canvas.width = clientWidth;
+    this.canvas.height = clientHeight;
     let that = this;
     this.canvas.addEventListener("webglcontextlost", function (event) {
       console.log("WebGL上下文丢失");
-  
+
       // inform WebGL that we handle context restoration
       // 通知WebGL我们处理上下文恢复
       event.preventDefault();
       console.log('3秒后重新渲染');
 
-      setTimeout(()=>{
+      setTimeout(() => {
         that.restart()
       }, 3000)
-    
+
       // Stop rendering
       // window.cancelAnimationFrame(requestId);
     }, false);
@@ -124,7 +133,11 @@ export class WebglTransitions {
     this.transitionList = transitionList.map((o: string) => {
       return transitionObject[o];
     });
-    this.playPicList = playPicList;
+    if (isArrayOfStrings(playPicList)) {
+      this.playPicList = playPicList;
+    } else {
+      this.asyncLoadImageSelf(playPicList);
+    }
     this.carouselTime = carouselTime || 3000;
 
 
@@ -136,15 +149,17 @@ export class WebglTransitions {
   };
 
   // 初始化校验
-  checkInitResource(domId: string, transitionList: any, playPicList: string[]) {
+  checkInitResource(domId: string, transitionList: any, playPicList: string[] | HTMLImageElement[]) {
     if (!domId || typeof domId !== 'string') {
       throw new Error('WebglTransitions初始化失败, 缺少Dom元素ID');
     }
-    if (!transitionList || transitionList.length === 0) {
-      throw new Error('WebglTransitions初始化失败, 缺少参数transitionList转场动画');
+    if (transitionList?.length < 1) {
+      throw new Error('WebglTransitions初始化失败, 至少需要1种转场动画');
     }
-    if (!playPicList || playPicList.length === 0) {
+    if (playPicList?.length === 0) {
       throw new Error('WebglTransitions初始化失败, 缺少参数playPicList转场图片');
+    } else if (playPicList?.length < 2) {
+      throw new Error('至少需要2张图片');
     }
   }
 
@@ -155,14 +170,8 @@ export class WebglTransitions {
       for (let i = 0; i < this.playPicList.length; i++) {
         const img = new Image();
 
-        // 图片是网络图片
-        if (RULE.isNetworkImageLoose.pattern.test(this.playPicList[i])) {
-          img.src = this.playPicList[i];
-          img.setAttribute('crossOrigin', 'Anonymous');
-        } else {
-          // img.src = getImageUrl(this.playPicList[i]);
-          img.src = `./images${this.playPicList[i]}`;
-        }
+        img.src = this.playPicList[i];
+        img.setAttribute('crossOrigin', 'Anonymous');
 
         img.onload = () => {
           c++;
@@ -173,6 +182,12 @@ export class WebglTransitions {
         };
       }
     });
+  }
+
+  // 自定义图片加载, 需要返回Image的数组
+  asyncLoadImageSelf(imagesList: HTMLImageElement[]) {
+    this.loadImageSelf = true;
+    this.playPicPreloadList = imagesList;
   }
 
   creatFirstTexture() {
@@ -248,11 +263,10 @@ export class WebglTransitions {
     this.gl.uniform1f(bounces, 3.0);
 
     // 只初始化获取一次图片资源
-    if (this.playPicPreloadList.length != this.playPicList.length) {
-      console.log('加载网络图片');
+    if (!this.loadImageSelf && this.playPicPreloadList.length != this.playPicList.length) {
       await Promise.all([this.asyncLoadImage()]);
     }
-    if(this.textures.length === 2) {
+    if (this.textures.length === 2) {
       this.gl.deleteTexture(this.textures[1]);
       this.gl.deleteTexture(this.textures[0]);
       this.textures = [];
@@ -281,7 +295,7 @@ export class WebglTransitions {
       }
 
       if (this.textures.length === 2) {
-        if(!this.shaderProgram) {
+        if (!this.shaderProgram) {
           console.error('shaderProgram失败');
           return;
         }
@@ -294,7 +308,7 @@ export class WebglTransitions {
           const length = e.value.length;
           switch (length) {
             case 1:
-              
+
               this.gl.uniform1f(this.gl.getUniformLocation(this.shaderProgram, e.key), e.value[0]);
               break;
             case 2:
@@ -317,7 +331,7 @@ export class WebglTransitions {
         if (i >= 1) {
           this.timer && clearInterval(this.timer);
           i = 0.0;
-          if (this.playPicIndex === this.playPicList.length - 1) {
+          if (this.playPicIndex === this.playPicPreloadList.length - 1) {
             this.playPicIndex = 0;
           } else {
             this.playPicIndex += 1;
@@ -433,11 +447,11 @@ export class WebglTransitions {
 
     if (!this.gl.getShaderParameter(this.fragmentShader, this.gl.COMPILE_STATUS)) {
       console.error('编译片元着色器时发生错误: ', this.gl.getShaderInfoLog(this.fragmentShader));
-      
+
       this.gl.deleteShader(this.fragmentShader);
       console.log('500ms后重新渲染');
-      
-      setTimeout(()=>{
+
+      setTimeout(() => {
         this.restart();
       }, 500);
     }
@@ -447,20 +461,19 @@ export class WebglTransitions {
   simulatedLostContext() {
     if (this.gl && this.gl.getExtension('WEBGL_lose_context')) {
 
-        ++this.analogLossContentCounts;
-        if (!this.gl || this.analogLossContentCounts > 1) {
-          return;
-        }
-        const a = this.gl.getExtension('WEBGL_lose_context');
-        a && a.loseContext();
-        console.clear();
-        console.log('模拟丢失');
-        this.timer && clearInterval(this.timer);
-        console.log('丢失后的timer', this.timer);
-        
-        this.diushijianting = 0;
-        // this.restart() // 立即执行自主的重新渲染，而不是让监听器执行
+      ++this.analogLossContentCounts;
+      if (!this.gl || this.analogLossContentCounts > 1) {
         return;
+      }
+      const a = this.gl.getExtension('WEBGL_lose_context');
+      a && a.loseContext();
+      console.clear();
+      console.log('模拟丢失');
+      this.timer && clearInterval(this.timer);
+      console.log('丢失后的timer', this.timer);
+
+      this.diushijianting = 0;
+      return;
     }
   }
 
@@ -478,25 +491,30 @@ export class WebglTransitions {
     this.analogLossContentCounts = 0;
 
     const el = document.querySelector(this.parentId);
-    if(el) {
-      const childs = el.childNodes; 
-      for(let i = childs .length - 1; i >= 0; i--) {
-        el.removeChild(childs[i]);
+    if (el) {
+      const childs = el.children;
+      for (let i = childs.length - 1; i >= 0; i--) {
+        if (RULE.webglTransitionParent.pattern.test(childs[i].id)) {
+          el.removeChild(childs[i]);
+        }
       }
     }
 
-    this.canvasId = Date.now().toString();
+    this.canvasId = `webgl-transition-${Math.random().toString().slice(2, 8)}`;
     this.canvas = document.createElement("canvas");
     this.canvas.id = this.canvasId;
+    const parent = document.querySelector(this.parentId);
+    // const {clientWidth, clientHeight} = {clientWidth: parent?.clientWidth | 1920, clientHeight: 1080};
     document.querySelector(this.parentId)?.appendChild(this.canvas);
-    this.canvas.width = 1920;
-    this.canvas.height = 1080;
+    // debugger
+    this.canvas.width = parent ? parent.clientWidth : 1920;
+    this.canvas.height = parent ? parent.clientHeight : 1080;
     console.log('新的canvas', this.canvas);
 
     // https://blog.csdn.net/qq_30100043/article/details/74127228
     //添加事件监听
-    
-    this.canvas.addEventListener("webglcontextlost", function() {
+
+    this.canvas.addEventListener("webglcontextlost", function () {
       ++that.diushijianting;
 
       // 注释可以一直重新初始化
@@ -504,8 +522,8 @@ export class WebglTransitions {
       //   that.diushijianting = 0;
       //   return;
       // }
-      
-      if(that.diushijianting > 1){
+
+      if (that.diushijianting > 1) {
         return;
       }
 
@@ -520,13 +538,13 @@ export class WebglTransitions {
       return;
     }
 
-    setTimeout(()=>{
+    setTimeout(() => {
       this.main();
     }, 1000)
   }
 
   dispose() {
-    if(this.gl) {
+    if (this.gl) {
       console.log('清空gl资源');
       // https://www.daicuo.cc/biji/357969
       this.gl.bindBuffer(this.gl.ARRAY_BUFFER, null);
@@ -538,12 +556,13 @@ export class WebglTransitions {
       this.gl.deleteTexture(this.textures[1]);
       this.gl.deleteTexture(this.textures[0]);
     }
-    
+
+    // this.loadImageSelf = false;
     this.firstInit = true;
     // this.timer = undefined; // 之前出现的抖动和多个着色器重复执行的怪象就是这行代码，提前清除this.timer导致后面无法执行clearInterval
     this.vsSource = '';
     this.fsSource = '';
-    this.playPicPreloadList = [];
+    // this.playPicPreloadList = [];
     this.shaderProgram = null;
     this.vertexShader = null;
     this.fragmentShader = null;
