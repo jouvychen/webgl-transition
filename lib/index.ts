@@ -48,6 +48,12 @@ interface ObjectKey {
   [key: string]: any;
 }
 
+interface ParentDom {
+  domId: string,
+  width?: string | number | undefined,
+  height?: string | number | undefined,
+}
+
 const transitionObject: ObjectKey = {
   wind: wind,
   waterDrop: waterDrop,
@@ -75,6 +81,7 @@ export class WebglTransitions {
   private loadImageSelf = false;
   private diushijianting = 0;
   private analogLossContentCounts = 0;
+  private parent: ParentDom = { domId: '', width: undefined, height: undefined };
   private parentId: string = '';
   private canvasId: string = '';
   private canvas: HTMLCanvasElement | null = null;
@@ -100,18 +107,29 @@ export class WebglTransitions {
 
 
 
-  constructor(domId: string, transitionList: any[], playPicList: string[] | HTMLImageElement[], carouselTime?: number) {
-    this.checkInitResource(domId, transitionList, playPicList);
+  constructor(parent: ParentDom, transitionList: any[], playPicList: string[] | HTMLImageElement[], carouselTime?: number) {
+    this.checkInitResource(parent.domId, transitionList, playPicList);
     this.canvasId = `webgl-transition-${Math.random().toString().slice(2, 10)}`;
-    this.parentId = domId;
+    this.parentId = parent.domId;
+    this.parent.domId = parent.domId;
+    this.parent.width = typeof parent.width === 'string' ? Number(parent.width) : parent.width;
+    this.parent.height = typeof parent.height === 'string' ? Number(parent.height) : parent.height;
 
     this.canvas = document.createElement("canvas");
     this.canvas.id = this.canvasId;
-    const parent = document.querySelector(domId);
-    const { clientWidth, clientHeight } = parent ? parent : { clientWidth: 1920, clientHeight: 1080 };
-    document.querySelector(domId)?.appendChild(this.canvas);
-    this.canvas.width = clientWidth;
-    this.canvas.height = clientHeight;
+    const parentDom = document.querySelector(parent.domId);
+
+    if (this.parent.width && this.parent.height) {
+      const { clientWidth, clientHeight } = { clientWidth: this.parent.width, clientHeight: this.parent.height };
+      this.canvas.width = clientWidth;
+      this.canvas.height = clientHeight;
+    } else {
+      const { clientWidth, clientHeight } = parentDom ? parentDom : { clientWidth: 1920, clientHeight: 1080 };
+      this.canvas.width = clientWidth;
+      this.canvas.height = clientHeight;
+    }
+    document.querySelector(parent.domId)?.appendChild(this.canvas);
+
     let that = this;
     this.canvas.addEventListener("webglcontextlost", function (event) {
       console.log("WebGL上下文丢失");
