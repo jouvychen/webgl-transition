@@ -485,7 +485,7 @@ export class WebglTransitions {
     this.timer && (clearInterval(this.timer));
   }
 
-  restart() {
+  private restart() {
     // 释放旧的gl上下文资源
     this.dispose();
 
@@ -565,7 +565,7 @@ export class WebglTransitions {
     // this.timer = undefined; // 之前出现的抖动和多个着色器重复执行的怪象就是这行代码，提前清除this.timer导致后面无法执行clearInterval
     this.vsSource = '';
     this.fsSource = '';
-    // this.playPicPreloadList = [];
+    this.playPicPreloadList = [];
     this.shaderProgram = null;
     this.vertexShader = null;
     this.fragmentShader = null;

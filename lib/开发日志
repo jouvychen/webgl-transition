@@ -4,3 +4,8 @@ Promise和NodeJS类型无法获取，安装npm i -D @types/node即可
 更新npm：https://blog.csdn.net/cvper/article/details/79051048
 
 [npm version patch](https://qa.1r1g.com/sf/ask/2000921261/)
+
+混合类型图用户不处理抛出错误
+全是网络图的加载失败处理
+
+设计采用不重用canvas，所以历史canvas要删除
