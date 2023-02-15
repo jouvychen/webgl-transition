@@ -1,6 +1,6 @@
 {
   "name": "webgl-transition",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "A simple webgl transition animation package",
   "main": "index.js",
   "scripts": {
