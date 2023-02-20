@@ -1,5 +1,5 @@
 # webgl-transition
-A simple webgl pictures transition animation package, adopt es6 standard, all glsl code from https://gl-transitions.com/.
+A simple webgl pictures transition animation package, adopt es6 standard, hide webgl details, all glsl code from https://gl-transitions.com/.
 
 
 Demo:
