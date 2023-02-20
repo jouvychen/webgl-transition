@@ -1,81 +1,11 @@
 import RULE from './rules';
+import { Transition, AssignmentList, ParentDom } from './interface'
+import { isArrayOfStrings } from './utils';
+
 
 // https://www.khronos.org/webgl/wiki/HandlingContextLost#:~:text=By%20default%20when%20a%20WebGL%20program%20loses%20the,canvas%20%3D%20document.getElementById%20%28%22myCanvas%22%29%3B%20canvas.addEventListener%20%28%22webglcontextlost%22%2C%20function%20
 
 // https://registry.khronos.org/webgl/specs/latest/1.0/#5.15.3
-// 过渡效果
-import { wind } from './transition-types/wind';
-import { waterDrop } from './transition-types/water-drop';
-import { squaresWire } from './transition-types/squares-wire';
-import { crossWarp } from './transition-types/cross-warp';
-import { crossZoom } from './transition-types/cross-zoom';
-import { directionalWarp } from './transition-types/directional-warp';
-import { dreamy } from './transition-types/dreamy';
-import { flyEye } from './transition-types/fly-eye';
-import { morph } from './transition-types/morph';
-import { mosaic } from './transition-types/mosaic';
-import { perlin } from './transition-types/perlin';
-import { randomSquares } from './transition-types/random-squares';
-import { ripple } from './transition-types/ripple';
-import { simpleZoom } from './transition-types/simple-zoom';
-import { directional } from './transition-types/directional';
-import { windowSlice } from './transition-types/window-slice';
-import { linearBlur } from './transition-types/linear-blur';
-import { invertedPageCurl } from './transition-types/inverted-page-curl';
-import { glitchMemories } from './transition-types/glitch-memories';
-import { polkaDotsCurtain } from './transition-types/polka-dots-curtain';
-
-
-const isArrayOfStrings = (value: unknown): value is string[] => {
-  return Array.isArray(value) && value.every(item => typeof item === "string");
-}
-
-// 初始化参数
-interface InitParams {
-  id: string,
-  transitionList: any,
-  playPicList: string[],
-  carouselTime?: number
-}
-
-// 需要赋值给自定义uniform的参数
-interface AssignmentList {
-  key: string,
-  value: number[],
-}
-
-interface ObjectKey {
-  [key: string]: any;
-}
-
-interface ParentDom {
-  domId: string,
-  width?: string | number | undefined,
-  height?: string | number | undefined,
-}
-
-const transitionObject: ObjectKey = {
-  wind: wind,
-  waterDrop: waterDrop,
-  squaresWire: squaresWire,
-  crossWarp: crossWarp,
-  crossZoom: crossZoom,
-  directionalWarp: directionalWarp,
-  dreamy: dreamy,
-  flyEye: flyEye,
-  morph: morph,
-  mosaic: mosaic,
-  perlin: perlin,
-  randomSquares: randomSquares,
-  ripple: ripple,
-  simpleZoom: simpleZoom,
-  directional: directional,
-  windowSlice: windowSlice,
-  invertedPageCurl: invertedPageCurl,
-  linearBlur: linearBlur,
-  glitchMemories: glitchMemories,
-  polkaDotsCurtain: polkaDotsCurtain,
-}
 
 export class WebglTransitions {
   private loadImageSelf = false;
@@ -96,7 +26,7 @@ export class WebglTransitions {
   public gl: WebGLRenderingContext | null;
   public textures: WebGLTexture[] = [];
   public playIndex = 0;
-  public transitionList: any[];
+  public transitionList: Transition[];
   public playPicIndex = 0; // 轮播次数
   public carouselTime: number; // 轮播间隔时间, 单位ms
   public playPicList: string[] = []; // 轮播图片
@@ -107,7 +37,7 @@ export class WebglTransitions {
 
 
 
-  constructor(parent: ParentDom, transitionList: any[], playPicList: string[] | HTMLImageElement[], carouselTime?: number) {
+  constructor(parent: ParentDom, transitionList: Transition[], playPicList: string[] | HTMLImageElement[], carouselTime?: number) {
     this.checkInitResource(parent.domId, transitionList, playPicList);
     this.canvasId = `webgl-transition-${Math.random().toString().slice(2, 10)}`;
     this.parentId = parent.domId;
@@ -148,9 +78,7 @@ export class WebglTransitions {
     }, false);
 
     this.gl = this.canvas.getContext('webgl') as WebGLRenderingContext;
-    this.transitionList = transitionList.map((o: string) => {
-      return transitionObject[o];
-    });
+    this.transitionList = transitionList;
     if (isArrayOfStrings(playPicList)) {
       this.playPicList = playPicList;
     } else {
@@ -167,7 +95,7 @@ export class WebglTransitions {
   };
 
   // 初始化校验
-  checkInitResource(domId: string, transitionList: any, playPicList: string[] | HTMLImageElement[]) {
+  checkInitResource(domId: string, transitionList: Transition[], playPicList: string[] | HTMLImageElement[]) {
     if (!domId || typeof domId !== 'string') {
       throw new Error('WebglTransitions初始化失败, 缺少Dom元素ID');
     }
@@ -228,9 +156,9 @@ export class WebglTransitions {
   }
 
   async main() {
-    console.log('贴图顺序信息', this.playPicPreloadList.map((o: HTMLImageElement) => {
-      return o.currentSrc
-    }));
+    // console.log('贴图顺序信息', this.playPicPreloadList.map((o: HTMLImageElement) => {
+    //   return o.currentSrc
+    // }));
 
     if (!this.gl) {
       return;
@@ -566,7 +494,7 @@ export class WebglTransitions {
 
   dispose() {
     if (this.gl) {
-      console.log('清空gl资源');
+      // console.log('清空gl资源');
       // https://www.daicuo.cc/biji/357969
       this.gl.bindBuffer(this.gl.ARRAY_BUFFER, null);
       this.vertexBuffer && this.gl.deleteBuffer(this.vertexBuffer);
