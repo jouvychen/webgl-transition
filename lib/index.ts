@@ -9,7 +9,7 @@ import { isArrayOfStrings } from './utils';
 
 export class WebglTransitions {
   private loadImageSelf = false;
-  private diushijianting = 0;
+  private numberOfLostContext = 0;
   private analogLossContentCounts = 0;
   private parent: ParentDom = { domId: '', width: undefined, height: undefined };
   private parentId: string = '';
@@ -421,7 +421,7 @@ export class WebglTransitions {
       this.timer && clearInterval(this.timer);
       // console.log('丢失后的timer', this.timer);
 
-      this.diushijianting = 0;
+      this.numberOfLostContext = 0;
       return;
     }
   }
@@ -464,15 +464,15 @@ export class WebglTransitions {
     //添加事件监听
 
     this.canvas.addEventListener("webglcontextlost", function () {
-      ++that.diushijianting;
+      ++that.numberOfLostContext;
 
       // 注释可以一直重新初始化
-      // if(that.diushijianting > 1){
-      //   that.diushijianting = 0;
+      // if(that.numberOfLostContext > 1){
+      //   that.numberOfLostContext = 0;
       //   return;
       // }
 
-      if (that.diushijianting > 1) {
+      if (that.numberOfLostContext > 1) {
         return;
       }
 
