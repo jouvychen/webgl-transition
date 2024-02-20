@@ -6,6 +6,7 @@ enum CheckResourceList {
   gl = "gl",
   texturesLength = "texturesLength",
   shaderProgram = "shaderProgram",
+  shaderCode = "shaderCode"
 }
 
 interface Window {
@@ -53,10 +54,16 @@ interface FrameRequestCallback {
 interface Config {
   parentId: string,
   transitionList: Transition[],
-  playPicUrlList: string[],
-  playPicList: HTMLImageElement[],
-  carouselTime: number,
-  watchResize: boolean,
+  playPicUrlList?: string[],
+  playPicList?: HTMLImageElement[],
+  carouselTime?: number,
+  watchResize?: boolean,
+}
+
+enum PlayStatus {
+  playing = 'playing',
+  pause = 'pause',
+  stop = 'stop',
 }
 
 export class WebglTransitions {
@@ -81,6 +88,7 @@ export class WebglTransitions {
   public transitionList!: Transition[];
   public playPicIndex = 0; // 轮播次数
   public playPicPreloadList: HTMLImageElement[] = []; // 轮播图片预加载存储列表
+  static playStatus: PlayStatus = PlayStatus.stop;
   public stopPlaying = false;
   public shaderProgram: WebGLProgram | null = null;
   public vertexBuffer: WebGLBuffer | null = null;
@@ -90,6 +98,8 @@ export class WebglTransitions {
   private config: Config;
   // 默认值
   defaultConfig = {
+    playPicUrlList: [],
+    playPicList: [],
     carouselTime: 3000, // 轮播间隔时间, 单位ms
     watchResize: false, // 默认不监听父容器大小变化且重绘
   }
@@ -145,8 +155,8 @@ export class WebglTransitions {
     }, false);
 
     // 若传入图片，则使用传入的图片对象
-    if (this.config.playPicList.length) {
-      this.asyncLoadImageSelf(this.config.playPicList);
+    if (this.config.playPicList!.length) {
+      this.asyncLoadImageSelf(this.config.playPicList!);
     }
 
   };
@@ -188,9 +198,9 @@ export class WebglTransitions {
     if (transitionList?.length < 1) {
       throw new Error('WebglTransitions初始化失败, 至少需要1种转场动画');
     }
-    if (playPicList?.length + playPicUrlList?.length === 0) {
+    if (playPicList!.length + playPicUrlList!.length === 0) {
       throw new Error('WebglTransitions初始化失败, 缺少转场图片。参数：playPicList/playPicUrlList');
-    } else if (playPicList?.length + playPicUrlList?.length < 2) {
+    } else if (playPicList!.length + playPicUrlList!.length < 2) {
       throw new Error('至少需要2张图片');
     }
   }
@@ -199,16 +209,16 @@ export class WebglTransitions {
     // 遍历数组的路径，预加载到浏览器中
     return new Promise((resolve: any) => {
       let c = 0;
-      for (let i = 0; i < this.config.playPicUrlList.length; i++) {
+      for (let i = 0; i < this.config.playPicUrlList!.length; i++) {
         const img = new Image();
 
-        img.src = this.config.playPicUrlList[i];
+        img.src = this.config.playPicUrlList![i];
         img.setAttribute('crossOrigin', 'Anonymous');
 
         img.onload = () => {
           c++;
           this.playPicPreloadList.push(img);
-          if (this.playPicPreloadList.length === this.config.playPicUrlList.length) {
+          if (this.playPicPreloadList.length === this.config.playPicUrlList!.length) {
             console.log('加载的图片列表：', this.playPicPreloadList);
             resolve(1);
           }
@@ -241,9 +251,16 @@ export class WebglTransitions {
 
   startCarousel() {
 
+    WebglTransitions.playStatus = PlayStatus.playing;
+
     this.checkResource([CheckResourceList.gl, CheckResourceList.shaderProgram]);
 
     const animate = () => {
+
+      if (!this.gl || WebglTransitions.playStatus != PlayStatus.playing) {
+        return;
+      }
+
       this.animationId = window.requestAnimationFrame(animate);
 
       const progress = this.gl!.getUniformLocation(this.shaderProgram!, 'progress');
@@ -274,7 +291,6 @@ export class WebglTransitions {
 
       // 循环控制器
       if (this.progress >= 1.0) {
-
         this.cancelAnimation();
         this.progress = 0.0;
 
@@ -283,19 +299,15 @@ export class WebglTransitions {
         // 设置过渡动画类型
         this.playIndex === this.config.transitionList.length - 1 ? this.playIndex = 0 : this.playIndex += 1;
 
-        this.timer && clearTimeout(this.timer);
+        this.clearNextAnimation();
         this.timer = setTimeout(() => {
           this.main();
         }, this.config.carouselTime);
+        return;
 
       }
 
       this.progress += 0.01;
-
-      if (!this.gl || this.stopPlaying) {
-        return;
-      }
-
     }
 
     animate();
@@ -313,6 +325,10 @@ export class WebglTransitions {
         console.error('shaderProgram初始化失败');
         checkBoo = false;
       }
+    }
+
+    if (checkResourceList.includes(CheckResourceList.shaderCode) && (!this.vertexShader || !this.fragmentShader)) {
+      checkBoo = false;
     }
 
     return checkBoo;
@@ -337,7 +353,6 @@ export class WebglTransitions {
     }
     const transition = this.config.transitionList[this.playIndex];
     // console.log('当前动画', this.playIndex, transition);
-    // console.log('当前动画', transition, this.playIndex);
 
     this.intervalTime = transition.intervalTime || 100;
     this.vsSource = transition.vsSource;
@@ -385,7 +400,7 @@ export class WebglTransitions {
     this.gl!.uniform1f(bounces, 3.0);
 
     // 只初始化获取一次图片资源
-    if (!this.loadImageSelf && this.playPicPreloadList.length != this.config.playPicUrlList.length) {
+    if (!this.loadImageSelf && this.playPicPreloadList.length != this.config.playPicUrlList!.length) {
       await Promise.all([this.asyncLoadImage()]);
     }
     if (this.textures.length === 2) {
@@ -413,26 +428,26 @@ export class WebglTransitions {
     this.loadVertexShader(this.vsSource);
     this.loadFragmentShader(this.fsSource);
 
-    if (!this.vertexShader || !this.fragmentShader) {
+    if (!this.checkResource([CheckResourceList.shaderCode])) {
       return false;
     }
+    // 如果保留下面，则会黑色背景
+    // if (!this.gl) {
+    //   return false;
+    // }
 
-    if (!this.gl) {
-      return false;
-    }
-
-    this.shaderProgram = this.gl.createProgram() as WebGLProgram;
+    this.shaderProgram = this.gl!.createProgram() as WebGLProgram;
 
     if (!this.shaderProgram) {
       console.log('shaderProgram初始化失败', this.vertexShader, this.fragmentShader, this.shaderProgram);
       return false;
     }
 
-    this.gl.attachShader(this.shaderProgram, this.vertexShader);
-    this.gl.attachShader(this.shaderProgram, this.fragmentShader);
-    this.gl.linkProgram(this.shaderProgram);
+    this.gl!.attachShader(this.shaderProgram, this.vertexShader!);
+    this.gl!.attachShader(this.shaderProgram, this.fragmentShader!);
+    this.gl!.linkProgram(this.shaderProgram);
 
-    if (!this.gl.getProgramParameter(this.shaderProgram, this.gl.LINK_STATUS)) {
+    if (!this.gl!.getProgramParameter(this.shaderProgram, this.gl!.LINK_STATUS)) {
       // alert('无法初始化着色器程序: ' + this.gl.getProgramInfoLog(shaderProgram));
       return null;
     }
@@ -503,8 +518,23 @@ export class WebglTransitions {
   }
 
   stop() {
-    this.stopPlaying = true;
+    WebglTransitions.playStatus = PlayStatus.stop;
     this.cancelAnimation();
+  }
+
+  pause() {
+    WebglTransitions.playStatus = PlayStatus.pause;
+    this.cancelAnimation();
+    this.clearNextAnimation();
+  }
+
+  continue() {
+    // 处于等待下个动画间隙时，需要使用main方法设置图片和动画下标，未完成此轮动画时才调用startCarousel继续执行过渡动画
+    if (this.progress === 0.0) {
+      this.main();
+    } else {
+      this.startCarousel();
+    }
   }
 
   private restart() {
@@ -563,7 +593,7 @@ export class WebglTransitions {
       return;
     }
 
-    this.timer && clearTimeout(this.timer);
+    this.clearNextAnimation();
     this.timer = setTimeout(() => {
       this.main();
     }, 1000)
@@ -598,7 +628,19 @@ export class WebglTransitions {
     this.textures = [];
     this.playIndex = 0;
     this.playPicIndex = 0;
+
+    // 移除画布
+    const el = document.querySelector(`#${this.canvasId}`);
+    if (el?.parentNode) {
+      el.parentNode.removeChild(el)
+    }
+
     this.canvas = null;
+  }
+
+  // 清除下次过渡动画
+  clearNextAnimation() {
+    this.timer && clearTimeout(this.timer);
   }
 
 }
