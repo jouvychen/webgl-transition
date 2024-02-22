@@ -25,10 +25,4 @@ interface AssignmentList {
     value: number[],
 }
 
-interface ParentDom {
-    domId: string,
-    width?: string | number | undefined,
-    height?: string | number | undefined,
-}
-
-export type { ObjectKey, Transition, TransitionObj, AssignmentList, ParentDom }
+export type { ObjectKey, Transition, TransitionObj, AssignmentList }

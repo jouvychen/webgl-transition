@@ -1,6 +1,6 @@
 import RULE from './rules';
-import { Transition, AssignmentList, ParentDom } from './interface'
-import { isArrayOfStrings, debounce } from './utils';
+import { Transition, AssignmentList } from './interface'
+import { debounce } from './utils';
 
 enum CheckResourceList {
   gl = "gl",
@@ -66,8 +66,12 @@ enum PlayStatus {
   stop = 'stop',
 }
 
+interface ResizeSize {
+  width: number;
+  height: number;
+}
+
 export class WebglTransitions {
-  private loadImageSelf = false;
   private numberOfLostContext = 0;
   private analogLossContentCounts = 0;
   private parentDom: HTMLDivElement;
@@ -88,7 +92,7 @@ export class WebglTransitions {
   public transitionList!: Transition[];
   public playPicIndex = 0; // 轮播次数
   public playPicPreloadList: HTMLImageElement[] = []; // 轮播图片预加载存储列表
-  static playStatus: PlayStatus = PlayStatus.stop;
+  public playStatus: PlayStatus = PlayStatus.stop;
   public stopPlaying = false;
   public shaderProgram: WebGLProgram | null = null;
   public vertexBuffer: WebGLBuffer | null = null;
@@ -96,6 +100,7 @@ export class WebglTransitions {
   public progress = 0.0;
   private resizeObserver!: ResizeObserver | null;
   private config: Config;
+  private onResizeCallback: (() => void) | null = null;
   // 默认值
   defaultConfig = {
     playPicUrlList: [],
@@ -171,21 +176,35 @@ export class WebglTransitions {
     }
   }
 
-  onResize(width?: number, height?: number) {
-    if (width && height) {
-      this.canvas!.width = width;
-      this.canvas!.height = height;
+  onResize(resizeSize?: ResizeSize) {
+    // 外部手动传入宽高时使用外部数据，否则使用内部获取父元素的宽高
+    const { width, height } = resizeSize ? resizeSize : { width: this.parentDom.clientWidth, height: this.parentDom.clientHeight };
+    if (this.canvas!.width === Math.ceil(width) && this.canvas!.height === Math.ceil(height))
+        return;
 
-      this.gl!.viewport(0, 0, width, height);
-    } else {
-      const { clientWidth } = this.parentDom;
-      this.canvas!.width = clientWidth;
-      this.canvas!.height = clientWidth / this.aspect;
+    this.setViewPort(0, 0, width, height);
+    
+    // 当缩放时，触发回调函数
+    this.triggerResizeCallback();
 
-      this.gl!.viewport(0, 0, this.gl!.canvas.width, this.gl!.canvas.height);
+    this.playStatus === PlayStatus.playing && this.startAnimationLoop();
+  }
+
+  setViewPort(x: number, y: number, width: number, height: number) {
+    this.canvas!.width = width;
+    this.canvas!.height = height;
+    this.gl!.viewport(x, y, this.canvas!.width, this.canvas!.height);
+  }
+
+  // 外部实例调用该方法来设置resize时的回调函数
+  setOnResizeCallback(callback: () => void) {
+    this.onResizeCallback = callback;
+  }
+
+  private triggerResizeCallback() {
+    if (this.onResizeCallback) {
+      this.onResizeCallback();
     }
-
-    this.startAnimationLoop();
   }
 
 
@@ -212,13 +231,12 @@ export class WebglTransitions {
       for (let i = 0; i < this.config.playPicUrlList!.length; i++) {
         const img = new Image();
 
-        img.src = this.config.playPicUrlList![i];
         img.setAttribute('crossOrigin', 'Anonymous');
 
         img.onload = () => {
           c++;
           this.playPicPreloadList.push(img);
-          if (this.playPicPreloadList.length === this.config.playPicUrlList!.length) {
+          if (this.playPicPreloadList.length === this.config.playPicUrlList!.length + this.config.playPicList!.length) {
             console.log('加载的图片列表：', this.playPicPreloadList);
             resolve(1);
           }
@@ -226,14 +244,14 @@ export class WebglTransitions {
         img.onerror = () => {
           throw new Error('图片加载失败');
         };
+        img.src = this.config.playPicUrlList![i];
       }
     });
   }
 
   // 自定义图片加载, 需要返回Image的数组
   asyncLoadImageSelf(imagesList: HTMLImageElement[]) {
-    this.loadImageSelf = true;
-    this.playPicPreloadList = imagesList;
+    this.playPicPreloadList = [...this.playPicPreloadList, ...imagesList];
   }
 
   creatFirstTexture() {
@@ -251,13 +269,13 @@ export class WebglTransitions {
 
   startCarousel() {
 
-    WebglTransitions.playStatus = PlayStatus.playing;
+    this.playStatus = PlayStatus.playing;
 
     this.checkResource([CheckResourceList.gl, CheckResourceList.shaderProgram]);
 
     const animate = () => {
 
-      if (!this.gl || WebglTransitions.playStatus != PlayStatus.playing) {
+      if (!this.gl || this.playStatus != PlayStatus.playing) {
         return;
       }
 
@@ -400,7 +418,11 @@ export class WebglTransitions {
     this.gl!.uniform1f(bounces, 3.0);
 
     // 只初始化获取一次图片资源
-    if (!this.loadImageSelf && this.playPicPreloadList.length != this.config.playPicUrlList!.length) {
+    // if (this.playPicPreloadList.length != this.config.playPicUrlList!.length) {
+    //   if (this.playPicPreloadList.length != this.config.playPicUrlList!.length) {
+    //   await Promise.all([this.asyncLoadImage()]);
+    // }
+    if (this.playPicPreloadList.length != this.config.playPicUrlList!.length + this.config.playPicList!.length) {
       await Promise.all([this.asyncLoadImage()]);
     }
     if (this.textures.length === 2) {
@@ -518,12 +540,12 @@ export class WebglTransitions {
   }
 
   stop() {
-    WebglTransitions.playStatus = PlayStatus.stop;
+    this.playStatus = PlayStatus.stop;
     this.cancelAnimation();
   }
 
   pause() {
-    WebglTransitions.playStatus = PlayStatus.pause;
+    this.playStatus = PlayStatus.pause;
     this.cancelAnimation();
     this.clearNextAnimation();
   }
@@ -616,7 +638,6 @@ export class WebglTransitions {
       this.gl.deleteTexture(this.textures[0]);
     }
 
-    // this.loadImageSelf = false;
     this.firstInit = true;
     this.vsSource = '';
     this.fsSource = '';
