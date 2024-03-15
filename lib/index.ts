@@ -23,9 +23,9 @@ interface FrameRequestCallback {
   const vendors = ['ms', 'moz', 'webkit', 'o'];
 
   for (let x = 0; x < vendors.length && !window.requestAnimationFrame; x++) {
-    window.requestAnimationFrame = window[vendors[x] + 'RequestAnimationFrame'];
+    window.requestAnimationFrame = window[vendors[x] + 'RequestAnimationFrame' as unknown as number] as unknown as ((callback: FrameRequestCallback) => number) & ((callback: FrameRequestCallback) => number);
     window.cancelAnimationFrame =
-      window[vendors[x] + 'CancelAnimationFrame'] || window[vendors[x] + 'CancelRequestAnimationFrame'];
+      (window[vendors[x] + 'CancelAnimationFrame' as unknown as number] || window[vendors[x] + 'CancelRequestAnimationFrame' as unknown as number]) as unknown as ((handle: number) => void) & ((handle: number) => void);
   }
 
   if (!window.requestAnimationFrame) {
@@ -72,6 +72,7 @@ interface ResizeSize {
 }
 
 export class WebglTransitions {
+  private version = '1.3.1';
   private numberOfLostContext = 0;
   private analogLossContentCounts = 0;
   private parentDom: HTMLDivElement;
@@ -93,7 +94,6 @@ export class WebglTransitions {
   public playPicIndex = 0; // 轮播次数
   public playPicPreloadList: HTMLImageElement[] = []; // 轮播图片预加载存储列表
   public playStatus: PlayStatus = PlayStatus.stop;
-  public stopPlaying = false;
   public shaderProgram: WebGLProgram | null = null;
   public vertexBuffer: WebGLBuffer | null = null;
   public animationId!: number;
@@ -118,6 +118,7 @@ export class WebglTransitions {
 
     this.canvas = document.createElement("canvas");
     this.canvas.id = this.canvasId;
+    this.canvas.setAttribute('version', `r${this.version}`);
     const parentDom = document.querySelector(this.config.parentId);
     if (parentDom instanceof HTMLDivElement) {
       this.parentDom = parentDom;

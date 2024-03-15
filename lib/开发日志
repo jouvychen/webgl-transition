@@ -9,3 +9,8 @@ Promise和NodeJS类型无法获取，安装npm i -D @types/node即可
 全是网络图的加载失败处理
 
 设计采用不重用canvas，所以历史canvas要删除
+
+过渡动画只有一个时不用重新创建着色器，更新图片下标即可。【待完成】
+
+默认背景：
+https://www.shadertoy.com/view/llXfRl
